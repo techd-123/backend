@@ -14,6 +14,16 @@ class BaseServiceModel(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Common fields for all services
+    name = models.CharField(max_length=100)
+    location = models.CharField(max_length=200)
+    rating = models.FloatField(
+        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)],
+        default=0.0
+    )
+    description = models.TextField(blank=True, null=True)
+    image = models.ImageField(upload_to='services/', null=True, blank=True)
 
     class Meta:
         abstract = True
@@ -23,164 +33,258 @@ class BaseServiceModel(models.Model):
             self.creator = self._state.user
         super().save(*args, **kwargs)
 
+    def __str__(self):
+        return f"{self.name} - {self.location}"
+
 class Venue(BaseServiceModel):
     CATEGORY_CHOICES = [
         ('premium', 'Premium'),
-        ('budget friendly', 'Budget Friendly'),
+        ('budget_friendly', 'Budget Friendly'),
         ('popular', 'Popular'),
         ('luxury', 'Luxury'),
+        ('outdoor', 'Outdoor'),
+        ('indoor', 'Indoor'),
+        ('beach', 'Beach'),
+        ('garden', 'Garden'),
+        ('banquet', 'Banquet Hall'),
         ('other', 'Other'),
     ]
     
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
-    name = models.CharField(max_length=100)
     capacity = models.PositiveIntegerField()
-    location = models.CharField(max_length=200)
-    image = models.ImageField(upload_to='venues/', null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    amenities = models.TextField(blank=True, null=True)
     
     def __str__(self):
         return f"{self.name} ({self.category}) - {self.location}"
 
 class PlanningAndDecor(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
+    CATEGORY_CHOICES = [
+        ('full_planning', 'Full Wedding Planning'),
+        ('partial_planning', 'Partial Planning'),
+        ('day_coordination', 'Day-of Coordination'),
+        ('decor_only', 'Decor Only'),
+        ('theme_based', 'Theme Based'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='planning_decor/', null=True, blank=True)
+    experience_years = models.PositiveIntegerField(default=0)
     
     def __str__(self):
-        return f"{self.name} - Rating: {self.rating}"
+        return f"{self.name} - {self.get_category_display()}"
 
 class Photography(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
+    CATEGORY_CHOICES = [
+        ('pre_wedding', 'Pre-Wedding'),
+        ('wedding_day', 'Wedding Day'),
+        ('cinematography', 'Cinematography'),
+        ('both', 'Photo + Video'),
+        ('drone', 'Drone Photography'),
+        ('traditional', 'Traditional'),
+        ('candid', 'Candid'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    location = models.CharField(max_length=200)
-    image = models.ImageField(upload_to='photography/', null=True, blank=True)
+    portfolio_link = models.URLField(blank=True, null=True)
+    equipment = models.TextField(blank=True, null=True)
     
     def __str__(self):
-        return f"{self.name} - {self.location}"
+        return f"{self.name} - {self.get_category_display()}"
 
 class Makeup(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
+    CATEGORY_CHOICES = [
+        ('bridal', 'Bridal Makeup'),
+        ('groom', 'Groom Makeup'),
+        ('family', 'Family Makeup'),
+        ('engagement', 'Engagement'),
+        ('reception', 'Reception'),
+        ('trial', 'Trial Session'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    location = models.CharField(max_length=200)
-    image = models.ImageField(upload_to='makeup/', null=True, blank=True)
+    specialty = models.CharField(max_length=100, blank=True, null=True)
+    brands_used = models.TextField(blank=True, null=True)
     
     def __str__(self):
-        return f"{self.name} - Rating: {self.rating}"
+        return f"{self.name} - {self.get_category_display()}"
 
 class BridalWear(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
+    CATEGORY_CHOICES = [
+        ('lehenga', 'Lehenga'),
+        ('saree', 'Saree'),
+        ('gown', 'Gown'),
+        ('traditional', 'Traditional'),
+        ('modern', 'Modern'),
+        ('indo_western', 'Indo-Western'),
+        ('custom', 'Custom Design'),
+        ('rental', 'Rental'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     price_range_min = models.DecimalField(max_digits=10, decimal_places=2)
     price_range_max = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='bridal_wear/', null=True, blank=True)
+    fabric = models.CharField(max_length=100, blank=True, null=True)
+    color_options = models.TextField(blank=True, null=True)
     
-    def __str__(self):
-        return f"{self.name} - {self.get_price_range()}"
-
     def get_price_range(self):
         return f"₹{self.price_range_min} - ₹{self.price_range_max}"
+    
+    def __str__(self):
+        return f"{self.name} - {self.get_category_display()}"
 
 class GroomWear(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
+    CATEGORY_CHOICES = [
+        ('sherwani', 'Sherwani'),
+        ('suit', 'Suit'),
+        ('traditional', 'Traditional'),
+        ('modern', 'Modern'),
+        ('indo_western', 'Indo-Western'),
+        ('custom', 'Custom Design'),
+        ('rental', 'Rental'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     price_range_min = models.DecimalField(max_digits=10, decimal_places=2)
     price_range_max = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='groom_wear/', null=True, blank=True)
+    fabric = models.CharField(max_length=100, blank=True, null=True)
     
-    def __str__(self):
-        return f"{self.name} - {self.get_price_range()}"
-
     def get_price_range(self):
         return f"₹{self.price_range_min} - ₹{self.price_range_max}"
+    
+    def __str__(self):
+        return f"{self.name} - {self.get_category_display()}"
 
 class Mehandi(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
+    CATEGORY_CHOICES = [
+        ('bridal', 'Bridal Mehandi'),
+        ('family', 'Family Mehandi'),
+        ('simple', 'Simple Design'),
+        ('intricate', 'Intricate Design'),
+        ('arabic', 'Arabic Style'),
+        ('indian', 'Indian Traditional'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='mehandi/', null=True, blank=True)
+    design_types = models.TextField(blank=True, null=True)
+    duration_hours = models.PositiveIntegerField(default=2)
     
     def __str__(self):
-        return f"{self.name} - Rating: {self.rating}"
+        return f"{self.name} - {self.get_category_display()}"
 
 class WeddingCake(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
+    CATEGORY_CHOICES = [
+        ('traditional', 'Traditional'),
+        ('modern', 'Modern'),
+        ('theme_based', 'Theme Based'),
+        ('custom_design', 'Custom Design'),
+        ('eggless', 'Eggless'),
+        ('multiple_tier', 'Multiple Tier'),
+        ('single_tier', 'Single Tier'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='wedding_cakes/', null=True, blank=True)
+    flavors = models.TextField(blank=True, null=True)
+    serving_size = models.PositiveIntegerField()
     
     def __str__(self):
-        return f"{self.name} - Rating: {self.rating}"
-    
+        return f"{self.name} - {self.get_category_display()}"
+
 class CarRental(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
+    CATEGORY_CHOICES = [
+        ('luxury', 'Luxury Cars'),
+        ('vintage', 'Vintage Cars'),
+        ('suv', 'SUVs'),
+        ('limousine', 'Limousine'),
+        ('convertible', 'Convertible'),
+        ('premium', 'Premium Sedan'),
+        ('economic', 'Economic'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='car_rentals/', null=True, blank=True)
+    car_model = models.CharField(max_length=100)
+    capacity = models.PositiveIntegerField()
     
     def __str__(self):
-        return f"{self.name} - {self.location}"
+        return f"{self.car_model} - {self.get_category_display()}"
 
 class DJ(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
+    CATEGORY_CHOICES = [
+        ('wedding', 'Wedding DJ'),
+        ('reception', 'Reception DJ'),
+        ('both', 'Wedding + Reception'),
+        ('bollywood', 'Bollywood Specialist'),
+        ('western', 'Western Music'),
+        ('regional', 'Regional Music'),
+        ('multilingual', 'Multilingual'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='djs/', null=True, blank=True)
+    music_genres = models.TextField(blank=True, null=True)
+    equipment_provided = models.TextField(blank=True, null=True)
     
     def __str__(self):
-        return f"{self.name} - Rating: {self.rating}"
+        return f"{self.name} - {self.get_category_display()}"
 
 class JewelryRental(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
+    CATEGORY_CHOICES = [
+        ('bridal_set', 'Bridal Set'),
+        ('necklace', 'Necklace'),
+        ('earrings', 'Earrings'),
+        ('bangles', 'Bangles'),
+        ('maang_tikka', 'Maang Tikka'),
+        ('nose_ring', 'Nose Ring'),
+        ('complete_set', 'Complete Set'),
+        ('traditional', 'Traditional'),
+        ('modern', 'Modern'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='jewelry_rentals/', null=True, blank=True)
+    material = models.CharField(max_length=100, blank=True, null=True)
+    stone_type = models.CharField(max_length=100, blank=True, null=True)
     
     def __str__(self):
-        return f"{self.name} - {self.location}"
+        return f"{self.name} - {self.get_category_display()}"
 
 class Catering(BaseServiceModel):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-    rating = models.FloatField(
-        validators=[MinValueValidator(0.0), MaxValueValidator(5.0)]
-    )
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='catering/', null=True, blank=True)
+    CATEGORY_CHOICES = [
+        ('vegetarian', 'Vegetarian'),
+        ('non_vegetarian', 'Non-Vegetarian'),
+        ('both', 'Vegetarian + Non-Veg'),
+        ('jain', 'Jain'),
+        ('regional', 'Regional Cuisine'),
+        ('international', 'International'),
+        ('live_counters', 'Live Counters'),
+        ('package', 'Package Deal'),
+        ('other', 'Other'),
+    ]
+    
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    price_per_plate = models.DecimalField(max_digits=10, decimal_places=2)
+    min_guests = models.PositiveIntegerField(default=50)
+    cuisine_types = models.TextField(blank=True, null=True)
     
     def __str__(self):
-        return f"{self.name} - Rating: {self.rating}"
+        return f"{self.name} - {self.get_category_display()}"
 
+# Wishlist and Cart models remain the same as your original
 class Wishlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     venues = models.ManyToManyField(Venue, blank=True)
@@ -262,6 +366,8 @@ class CartItem(models.Model):
                 return obj.price * self.quantity
             elif hasattr(obj, 'price_range_min'):
                 return obj.price_range_min * self.quantity
+            elif hasattr(obj, 'price_per_plate'):
+                return obj.price_per_plate * self.quantity
             return 0
         except model_class.DoesNotExist:
             return 0

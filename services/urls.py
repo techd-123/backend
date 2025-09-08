@@ -56,4 +56,7 @@ urlpatterns = [
     
     # Wishlist URLs
     path('wishlist/', WishlistView.as_view(), name='wishlist'),
+
+    # Global Search:
+    path('search/', GlobalSearchView.as_view(), name='global-search'),
 ]
