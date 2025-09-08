@@ -1,123 +1,93 @@
 from django.contrib import admin
 from .models import *
 
+@admin.register(Venue)
 class VenueAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'capacity', 'location')
-    list_filter = ('category',)
-    search_fields = ('name', 'location')
+    list_display = ['name', 'category', 'location', 'price', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location']
 
+@admin.register(PlanningAndDecor)
 class PlanningAndDecorAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'price')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
+    list_display = ['name', 'category', 'location', 'price', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location']
 
+@admin.register(Photography)
 class PhotographyAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'price')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
+    list_display = ['name', 'category', 'location', 'price', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location']
 
+@admin.register(Makeup)
 class MakeupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'price')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
+    list_display = ['name', 'category', 'location', 'price', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location']
 
+@admin.register(BridalWear)
 class BridalWearAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'get_price_range')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
-    
-    def get_price_range(self, obj):
-        return f"₹{obj.price_range_min} - ₹{obj.price_range_max}"
-    get_price_range.short_description = 'Price Range'
+    list_display = ['name', 'category', 'location', 'price_range_min', 'price_range_max', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location']
 
+@admin.register(GroomWear)
 class GroomWearAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'get_price_range')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
-    
-    def get_price_range(self, obj):
-        return f"₹{obj.price_range_min} - ₹{obj.price_range_max}"
-    get_price_range.short_description = 'Price Range'
+    list_display = ['name', 'category', 'location', 'price_range_min', 'price_range_max', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location']
 
+@admin.register(Mehandi)
 class MehandiAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'price')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
+    list_display = ['name', 'category', 'location', 'price', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location']
 
+@admin.register(WeddingCake)
 class WeddingCakeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'price')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
+    list_display = ['name', 'category', 'location', 'price', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location']
 
+@admin.register(CarRental)
 class CarRentalAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'price')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
+    list_display = ['name', 'category', 'location', 'price', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location', 'car_model']
 
+@admin.register(DJ)
 class DJAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'price')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
+    list_display = ['name', 'category', 'location', 'price', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location']
 
+@admin.register(JewelryRental)
 class JewelryRentalAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'price')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
+    list_display = ['name', 'category', 'location', 'price', 'rating', 'creator']
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location']
 
+@admin.register(Catering)
 class CateringAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location', 'rating', 'price')
-    search_fields = ('name', 'location')
-    list_filter = ('rating',)
+    list_display = ['name', 'category', 'location', 'price_per_plate', 'rating', 'creator']  # Changed 'price' to 'price_per_plate'
+    list_filter = ['category', 'location', 'rating']
+    search_fields = ['name', 'location', 'cuisine_types']
 
-class CartItemInline(admin.TabularInline):
-    model = CartItem
-    extra = 0
-    exclude = ['cart']
-
-class CartAdmin(admin.ModelAdmin):
-    list_display = ('user', 'created_at', 'updated_at', 'total_price')
-    filter_horizontal = ('items',)  # This provides a better interface for ManyToMany
-    
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        return qs.prefetch_related('items')
-
-class CartItemAdmin(admin.ModelAdmin):
-    list_display = ('content_type', 'object_id', 'quantity', 'added_at', 'total_price')
-    list_filter = ('content_type',)
-    
-    def total_price(self, obj):
-        return obj.total_price()
-    total_price.short_description = 'Total Price'
-
+@admin.register(Wishlist)
 class WishlistAdmin(admin.ModelAdmin):
-    list_display = ('user', 'created_at', 'get_item_count')
-    filter_horizontal = (
-        'venues', 'planning_decor', 'photography', 'makeup',
-        'bridal_wear', 'groom_wear', 'mehandi', 'wedding_cake'
-    )
-    
-    def get_item_count(self, obj):
-        count = 0
-        for field in ['venues', 'planning_decor', 'photography', 'makeup',
-                     'bridal_wear', 'groom_wear', 'mehandi', 'wedding_cake']:
-            count += getattr(obj, field).count()
-        return count
-    get_item_count.short_description = 'Item Count'
+    list_display = ['user', 'created_at']
+    filter_horizontal = [
+        'venues', 'planning_decor', 'photography', 'makeup', 
+        'bridal_wear', 'groom_wear', 'mehandi', 'wedding_cake',
+        'car_rentals', 'djs', 'jewelry_rentals', 'catering'
+    ]
 
-# Register all models
-admin.site.register(Venue, VenueAdmin)
-admin.site.register(PlanningAndDecor, PlanningAndDecorAdmin)
-admin.site.register(Photography, PhotographyAdmin)
-admin.site.register(Makeup, MakeupAdmin)
-admin.site.register(BridalWear, BridalWearAdmin)
-admin.site.register(GroomWear, GroomWearAdmin)
-admin.site.register(Mehandi, MehandiAdmin)
-admin.site.register(WeddingCake, WeddingCakeAdmin)
-admin.site.register(CarRental, CarRentalAdmin)
-admin.site.register(DJ, DJAdmin)
-admin.site.register(JewelryRental, JewelryRentalAdmin)
-admin.site.register(Catering, CateringAdmin)
-admin.site.register(Cart, CartAdmin)
-admin.site.register(CartItem, CartItemAdmin)
-admin.site.register(Wishlist, WishlistAdmin)
+@admin.register(Cart)
+class CartAdmin(admin.ModelAdmin):
+    list_display = ['user', 'created_at', 'updated_at']
+    filter_horizontal = ['items']
+
+@admin.register(CartItem)
+class CartItemAdmin(admin.ModelAdmin):
+    list_display = ['content_type', 'object_id', 'quantity', 'added_at']
+    list_filter = ['content_type', 'added_at']

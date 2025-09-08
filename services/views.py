@@ -29,6 +29,34 @@ class ServiceListView(APIView):
         if creator_id:
             queryset = queryset.filter(creator__id=creator_id)
             
+        # Filter by location if provided
+        location = self.request.query_params.get('location')
+        if location:
+            queryset = queryset.filter(location__icontains=location)
+            
+        # Filter by name/search term if provided
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+            
+        # Filter by price range if provided
+        min_price = self.request.query_params.get('min_price')
+        max_price = self.request.query_params.get('max_price')
+        
+        if min_price:
+            # Handle both price and price_range_min fields
+            price_field = 'price' if hasattr(self.model, 'price') else 'price_range_min'
+            queryset = queryset.filter(**{f'{price_field}__gte': min_price})
+            
+        if max_price:
+            price_field = 'price' if hasattr(self.model, 'price') else 'price_range_max'
+            queryset = queryset.filter(**{f'{price_field}__lte': max_price})
+            
+        # Filter by rating if provided
+        min_rating = self.request.query_params.get('min_rating')
+        if min_rating:
+            queryset = queryset.filter(rating__gte=min_rating)
+            
         return queryset
     
     def get(self, request):
@@ -416,3 +444,170 @@ class WishlistView(APIView):
                 {'error': 'Item not found in wishlist'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+from django.utils import timezone
+from django.core.paginator import Paginator, EmptyPage
+from django.db.models import Q
+
+class GlobalSearchView(APIView):
+    """Search across all vendor types with minimal query requirements"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            # Extract parameters from request body
+            params = request.data
+            
+            # Check if at least one search parameter is provided
+            if not any([
+                params.get('q'),
+                params.get('location'),
+                params.get('vendor_type'),
+                params.get('category'),
+                params.get('min_price'),
+                params.get('max_price'),
+                params.get('min_rating'),
+                params.get('min_capacity'),
+                params.get('max_capacity')
+            ]):
+                return Response({
+                    'success': False,
+                    'error': 'At least one search parameter is required',
+                    'timestamp': timezone.now().isoformat()
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Extract and validate parameters
+            search_params = {
+                'search_term': params.get('q', '').strip(),
+                'location': params.get('location', '').strip(),
+                'vendor_type': params.get('vendor_type', '').strip(),
+                'category': params.get('category', '').strip(),
+                'min_price': self.safe_float(params.get('min_price')),
+                'max_price': self.safe_float(params.get('max_price')),
+                'min_rating': self.safe_float(params.get('min_rating')),
+                'min_capacity': self.safe_int(params.get('min_capacity')),
+                'max_capacity': self.safe_int(params.get('max_capacity')),
+                'page': self.safe_int(params.get('page', 1)),
+                'page_size': self.safe_int(params.get('page_size', 20)),
+            }
+            
+            # Perform search
+            results = self.perform_search(search_params)
+            
+            return Response({
+                'success': True,
+                'data': results,
+                'filters': search_params,
+                'timestamp': timezone.now().isoformat()
+            })
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e),
+                'timestamp': timezone.now().isoformat()
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def safe_float(self, value):
+        """Safely convert to float, return None if invalid"""
+        try:
+            return float(value) if value not in [None, ''] else None
+        except (ValueError, TypeError):
+            return None
+    
+    def safe_int(self, value):
+        """Safely convert to int, return default if invalid"""
+        try:
+            return int(value) if value not in [None, ''] else None
+        except (ValueError, TypeError):
+            return None
+    
+    def perform_search(self, params):
+        """Perform search with minimal query requirements"""
+        results = {}
+        
+        vendor_models = {
+            'venue': (Venue, VenueSerializer),
+            'planning_decor': (PlanningAndDecor, PlanningAndDecorSerializer),
+            'photography': (Photography, PhotographySerializer),
+            'makeup': (Makeup, MakeupSerializer),
+            'bridal_wear': (BridalWear, BridalWearSerializer),
+            'groom_wear': (GroomWear, GroomWearSerializer),
+            'mehandi': (Mehandi, MehandiSerializer),
+            'wedding_cake': (WeddingCake, WeddingCakeSerializer),
+            'car_rental': (CarRental, CarRentalSerializer),
+            'dj': (DJ, DJSerializer),
+            'jewelry_rental': (JewelryRental, JewelryRentalSerializer),
+            'catering': (Catering, CateringSerializer),
+        }
+        
+        models_to_search = [params['vendor_type']] if params['vendor_type'] else vendor_models.keys()
+        
+        for model_key in models_to_search:
+            if model_key in vendor_models:
+                model_class, serializer_class = vendor_models[model_key]
+                queryset = model_class.objects.all()
+                
+                # Apply search term (optional)
+                if params['search_term']:
+                    queryset = queryset.filter(
+                        Q(name__icontains=params['search_term']) |
+                        Q(location__icontains=params['search_term']) |
+                        Q(category__icontains=params['search_term']) |
+                        Q(description__icontains=params['search_term'])
+                    )
+                
+                # Apply location filter (optional)
+                if params['location']:
+                    queryset = queryset.filter(location__icontains=params['location'])
+                
+                # Apply category filter (optional)
+                if params['category']:
+                    queryset = queryset.filter(category=params['category'])
+                
+                # Apply price filters (optional)
+                if params['min_price'] is not None:
+                    if hasattr(model_class, 'price'):
+                        queryset = queryset.filter(price__gte=params['min_price'])
+                    elif hasattr(model_class, 'price_range_min'):
+                        queryset = queryset.filter(price_range_min__gte=params['min_price'])
+                    elif hasattr(model_class, 'price_per_plate'):
+                        queryset = queryset.filter(price_per_plate__gte=params['min_price'])
+                
+                if params['max_price'] is not None:
+                    if hasattr(model_class, 'price'):
+                        queryset = queryset.filter(price__lte=params['max_price'])
+                    elif hasattr(model_class, 'price_range_max'):
+                        queryset = queryset.filter(price_range_max__lte=params['max_price'])
+                    elif hasattr(model_class, 'price_per_plate'):
+                        queryset = queryset.filter(price_per_plate__lte=params['max_price'])
+                
+                # Apply rating filter (optional)
+                if params['min_rating'] is not None:
+                    queryset = queryset.filter(rating__gte=params['min_rating'])
+                
+                # Apply capacity filters (optional - for venues and car rentals)
+                if params['min_capacity'] is not None and hasattr(model_class, 'capacity'):
+                    queryset = queryset.filter(capacity__gte=params['min_capacity'])
+                
+                if params['max_capacity'] is not None and hasattr(model_class, 'capacity'):
+                    queryset = queryset.filter(capacity__lte=params['max_capacity'])
+                
+                # Apply pagination
+                paginator = Paginator(queryset, params['page_size'])
+                try:
+                    page_obj = paginator.page(params['page'])
+                except EmptyPage:
+                    page_obj = paginator.page(paginator.num_pages)
+                
+                results[model_key] = {
+                    'results': serializer_class(page_obj, many=True).data,
+                    'pagination': {
+                        'current_page': params['page'],
+                        'total_pages': paginator.num_pages,
+                        'total_results': paginator.count,
+                        'page_size': params['page_size']
+                    }
+                }
+        
+        return results
