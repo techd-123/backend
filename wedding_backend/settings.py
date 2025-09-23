@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'services',
     'weddingprofile',
     'accounts',
+    'orders',
 ]
 
 MIDDLEWARE = [

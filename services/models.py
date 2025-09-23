@@ -315,6 +315,32 @@ class Cart(models.Model):
     
     def total_price(self):
         return sum(item.total_price() for item in self.items.all())
+    
+    def item_count(self):
+        return self.items.count()
+    
+    def clear_cart(self):
+        """Clear all items from cart"""
+        self.items.all().delete()
+    
+    def get_items_grouped_by_vendor(self):
+        """Group cart items by vendor for order processing"""
+        vendor_items = {}
+        for item in self.items.all():
+            service_obj = item.get_service_object()
+            if service_obj and service_obj.creator:
+                vendor_email = service_obj.creator.email
+                if vendor_email not in vendor_items:
+                    vendor_items[vendor_email] = {
+                        'vendor': service_obj.creator,
+                        'items': []
+                    }
+                vendor_items[vendor_email]['items'].append(item)
+        return vendor_items
+    
+    def can_checkout(self):
+        """Check if cart can be checked out"""
+        return self.items.exists()
 
 class CartItem(models.Model):
     CONTENT_TYPE_CHOICES = [
@@ -336,6 +362,10 @@ class CartItem(models.Model):
     object_id = models.PositiveIntegerField()
     quantity = models.PositiveIntegerField(default=1)
     added_at = models.DateTimeField(auto_now_add=True)
+    
+    service_date = models.DateField(null=True, blank=True)
+    service_time = models.TimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, null=True)
     
     def __str__(self):
         return f"{self.quantity} x {self.content_type} (ID: {self.object_id})"
@@ -371,3 +401,52 @@ class CartItem(models.Model):
             return 0
         except model_class.DoesNotExist:
             return 0
+    
+    def get_service_object(self):
+        """Get the actual service object"""
+        model_map = {
+            'venue': Venue,
+            'planning_decor': PlanningAndDecor,
+            'photography': Photography,
+            'makeup': Makeup,
+            'bridal_wear': BridalWear,
+            'groom_wear': GroomWear,
+            'mehandi': Mehandi,
+            'wedding_cake': WeddingCake,
+            'car_rental': CarRental,
+            'dj': DJ,
+            'jewelry_rental': JewelryRental,
+            'catering': Catering,
+        }
+        
+        model_class = model_map.get(self.content_type)
+        if model_class:
+            try:
+                return model_class.objects.get(pk=self.object_id)
+            except model_class.DoesNotExist:
+                return None
+        return None
+    
+    def get_service_details(self):
+        """Get service details for display"""
+        service_obj = self.get_service_object()
+        if service_obj:
+            return {
+                'name': service_obj.name,
+                'price': self.get_unit_price(),
+                'vendor_name': service_obj.creator.get_full_name() if service_obj.creator else 'Unknown',
+                'vendor_email': service_obj.creator.email if service_obj.creator else ''
+            }
+        return None
+    
+    def get_unit_price(self):
+        """Get unit price of the service"""
+        service_obj = self.get_service_object()
+        if service_obj:
+            if hasattr(service_obj, 'price'):
+                return service_obj.price
+            elif hasattr(service_obj, 'price_range_min'):
+                return service_obj.price_range_min
+            elif hasattr(service_obj, 'price_per_plate'):
+                return service_obj.price_per_plate
+        return 0

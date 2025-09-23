@@ -4,6 +4,13 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
+from django.db import transaction  # Add this import
+from django.utils import timezone  # Add this import
+from django.core.mail import send_mail  # Add this import
+from django.template.loader import render_to_string  # Add this import
+from django.utils.html import strip_tags  # Add this import
+from django.conf import settings  # Add this import
+
 from .models import *
 from .serializers import *
 from .permissions import IsStaffOrCreatorOrReadOnly
@@ -109,7 +116,7 @@ class ServiceDetailView(APIView):
         obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-# Concrete service views
+# Concrete service views (keep your existing views)
 class VenueListView(ServiceListView):
     model = Venue
     serializer_class = VenueSerializer
@@ -206,6 +213,7 @@ class CateringDetailView(ServiceDetailView):
     model = Catering
     serializer_class = CateringSerializer
 
+# Enhanced Cart Views
 class CartView(APIView):
     """View for managing user's shopping cart"""
     permission_classes = [IsAuthenticated]
@@ -216,9 +224,13 @@ class CartView(APIView):
         return Response(serializer.data)
     
     def post(self, request):
+        """Add item to cart"""
         content_type = request.data.get('content_type')
         object_id = request.data.get('object_id')
         quantity = request.data.get('quantity', 1)
+        service_date = request.data.get('service_date')
+        service_time = request.data.get('service_time')
+        notes = request.data.get('notes', '')
         
         if not content_type or not object_id:
             return Response(
@@ -273,12 +285,21 @@ class CartView(APIView):
         
         if existing_item:
             existing_item.quantity += int(quantity)
+            if service_date:
+                existing_item.service_date = service_date
+            if service_time:
+                existing_item.service_time = service_time
+            if notes:
+                existing_item.notes = notes
             existing_item.save()
         else:
             new_item = CartItem.objects.create(
                 content_type=content_type,
                 object_id=object_id,
-                quantity=quantity
+                quantity=quantity,
+                service_date=service_date,
+                service_time=service_time,
+                notes=notes
             )
             cart.items.add(new_item)
         
@@ -316,10 +337,13 @@ class CartItemView(APIView):
     
     def patch(self, request, item_id):
         quantity = request.data.get('quantity')
+        service_date = request.data.get('service_date')
+        service_time = request.data.get('service_time')
+        notes = request.data.get('notes')
         
-        if not quantity:
+        if not any([quantity, service_date, service_time, notes is not None]):
             return Response(
-                {'error': 'quantity is required'},
+                {'error': 'At least one field to update is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -332,7 +356,15 @@ class CartItemView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        item.quantity = quantity
+        if quantity is not None:
+            item.quantity = quantity
+        if service_date is not None:
+            item.service_date = service_date
+        if service_time is not None:
+            item.service_time = service_time
+        if notes is not None:
+            item.notes = notes
+        
         item.save()
         return Response(CartItemSerializer(item).data)
     
@@ -349,6 +381,167 @@ class CartItemView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+class CartCheckoutView(APIView):
+    """Checkout cart and create order from all cart items"""
+    permission_classes = [IsAuthenticated]
+    
+    @transaction.atomic
+    def post(self, request):
+        from orders.models import Order, OrderItem, VendorOrderNotification  # Import here to avoid circular imports
+        
+        cart = get_object_or_404(Cart, user=request.user)
+        
+        # Check if cart can be checked out
+        if not cart.items.exists():
+            return Response(
+                {'error': 'Cart is empty. Add items before checkout.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get checkout data from request
+        event_date = request.data.get('event_date')
+        special_instructions = request.data.get('special_instructions', '')
+        
+        # Create order from cart items
+        order = Order.objects.create(
+            customer=request.user,
+            customer_name=f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username,
+            customer_email=request.user.email,
+            customer_phone=request.user.phone_number or '',
+            event_date=event_date,
+            special_instructions=special_instructions,
+            total_amount=0  # Will be calculated
+        )
+        
+        total_amount = 0
+        order_items = []
+        
+        for cart_item in cart.items.all():
+            service_obj = cart_item.get_service_object()
+            if not service_obj:
+                continue
+            
+            # Determine unit price
+            unit_price = cart_item.get_unit_price()
+            item_total = unit_price * cart_item.quantity
+            total_amount += item_total
+            
+            # Create order item
+            order_item = OrderItem(
+                order=order,
+                service_type=cart_item.content_type,
+                service_id=cart_item.object_id,
+                service_name=service_obj.name,
+                service_price=unit_price,
+                vendor_name=service_obj.creator.get_full_name() if service_obj.creator else 'Unknown Vendor',
+                vendor_email=service_obj.creator.email if service_obj.creator else '',
+                quantity=cart_item.quantity,
+                unit_price=unit_price,
+                total_price=item_total,
+                service_date=cart_item.service_date,
+                service_time=cart_item.service_time,
+                notes=cart_item.notes
+            )
+            order_items.append(order_item)
+        
+        # Save all order items
+        OrderItem.objects.bulk_create(order_items)
+        
+        # Update order total
+        order.total_amount = total_amount
+        order.save()
+        
+        # Send notifications
+        self.send_vendor_notifications(order)
+        self.send_customer_confirmation(order)
+        
+        # Clear the cart after successful order
+        cart.items.all().delete()
+        
+        from orders.serializers import OrderSerializer  # Import here
+        response_serializer = OrderSerializer(order)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+    
+    def send_vendor_notifications(self, order):
+        """Send email notifications to vendors"""
+        vendors = order.get_vendors()
+        
+        for vendor in vendors:
+            from orders.models import VendorOrderNotification  # Import here
+            
+            notification, created = VendorOrderNotification.objects.get_or_create(
+                order=order,
+                vendor=vendor
+            )
+            
+            vendor_items = order.items.filter(vendor_email=vendor.email)
+            
+            subject = f'New Order Received - #{order.order_number}'
+            
+            # Simple email content (you can create templates later)
+            message = f"""
+            New Order Received!
+            
+            Order Number: #{order.order_number}
+            Customer: {order.customer_name}
+            Email: {order.customer_email}
+            Phone: {order.customer_phone}
+            Event Date: {order.event_date}
+            
+            Services Ordered:
+            """
+            
+            for item in vendor_items:
+                message += f"\n- {item.service_name}: {item.quantity} x ₹{item.unit_price} = ₹{item.total_price}"
+            
+            message += f"\n\nTotal Amount: ₹{order.total_amount}"
+            
+            if order.special_instructions:
+                message += f"\n\nSpecial Instructions: {order.special_instructions}"
+            
+            try:
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [vendor.email],
+                    fail_silently=False,
+                )
+                notification.email_sent = True
+                notification.email_sent_at = timezone.now()
+                notification.save()
+            except Exception as e:
+                print(f"Failed to send email to vendor {vendor.email}: {str(e)}")
+    
+    def send_customer_confirmation(self, order):
+        """Send order confirmation to customer"""
+        subject = f'Order Confirmation - #{order.order_number}'
+        
+        message = f"""
+        Thank you for your order!
+        
+        Order Number: #{order.order_number}
+        Order Date: {order.created_at.strftime('%Y-%m-%d %H:%M')}
+        Total Amount: ₹{order.total_amount}
+        Status: {order.get_order_status_display()}
+        
+        Your vendors have been notified and will contact you shortly.
+        
+        Thank you for choosing our service!
+        """
+        
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [order.customer_email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            print(f"Failed to send confirmation email to customer: {str(e)}")
+
+# Keep your existing WishlistView and GlobalSearchView
 class WishlistView(APIView):
     """View for managing user's wishlist"""
     permission_classes = [IsAuthenticated]
@@ -445,10 +638,6 @@ class WishlistView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-from django.utils import timezone
-from django.core.paginator import Paginator, EmptyPage
-from django.db.models import Q
-
 class GlobalSearchView(APIView):
     """Search across all vendor types with minimal query requirements"""
     permission_classes = [AllowAny]
@@ -524,6 +713,9 @@ class GlobalSearchView(APIView):
     
     def perform_search(self, params):
         """Perform search with minimal query requirements"""
+        from django.core.paginator import Paginator, EmptyPage
+        from django.db.models import Q
+        
         results = {}
         
         vendor_models = {

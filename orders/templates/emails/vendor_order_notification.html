@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #f8f9fa; padding: 20px; text-align: center; }
+        .order-details { background: #fff; padding: 20px; margin: 20px 0; }
+        .item { border-bottom: 1px solid #eee; padding: 10px 0; }
+        .total { font-weight: bold; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>New Order Received!</h1>
+        </div>
+        
+        <div class="order-details">
+            <h2>Order #{{ order.order_number }}</h2>
+            <p><strong>Customer:</strong> {{ order.customer_name }}</p>
+            <p><strong>Email:</strong> {{ order.customer_email }}</p>
+            <p><strong>Phone:</strong> {{ order.customer_phone }}</p>
+            <p><strong>Event Date:</strong> {{ order.event_date|default:"Not specified" }}</p>
+            
+            <h3>Services Ordered:</h3>
+            {% for item in items %}
+            <div class="item">
+                <p><strong>{{ item.service_name }}</strong></p>
+                <p>Quantity: {{ item.quantity }}</p>
+                <p>Price: ₹{{ item.unit_price }} x {{ item.quantity }} = ₹{{ item.total_price }}</p>
+                {% if item.notes %}
+                <p>Notes: {{ item.notes }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+            
+            <div class="total">
+                <p>Total Amount: ₹{{ order.total_amount }}</p>
+            </div>
+            
+            {% if order.special_instructions %}
+            <p><strong>Special Instructions:</strong> {{ order.special_instructions }}</p>
+            {% endif %}
+        </div>
+        
+        <p>Please log in to your vendor dashboard to manage this order.</p>
+        <p><a href="planithere.in/vendor/dashboard">Go to Vendor Dashboard</a></p>
+    </div>
+</body>
+</html>
