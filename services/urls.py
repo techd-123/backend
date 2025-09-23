@@ -53,6 +53,7 @@ urlpatterns = [
     # Cart URLs
     path('cart/', CartView.as_view(), name='cart'),
     path('cart/items/<int:item_id>/', CartItemView.as_view(), name='cart-item-detail'),
+    path('cart/checkout/', CartCheckoutView.as_view(), name='cart-checkout'),
     
     # Wishlist URLs
     path('wishlist/', WishlistView.as_view(), name='wishlist'),

@@ -84,10 +84,27 @@ class WishlistAdmin(admin.ModelAdmin):
 
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
-    list_display = ['user', 'created_at', 'updated_at']
-    filter_horizontal = ['items']
+    list_display = ['user', 'item_count', 'total_price', 'created_at', 'updated_at']
+    list_filter = ['created_at', 'updated_at']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def item_count(self, obj):
+        return obj.item_count()
+    item_count.short_description = 'Items'
+    
+    def total_price(self, obj):
+        return f"₹{obj.total_price()}"
+    total_price.short_description = 'Total'
 
 @admin.register(CartItem)
 class CartItemAdmin(admin.ModelAdmin):
-    list_display = ['content_type', 'object_id', 'quantity', 'added_at']
+    list_display = ['user', 'content_type', 'object_id', 'quantity', 'total_price', 'added_at']
     list_filter = ['content_type', 'added_at']
+    readonly_fields = ['added_at']
+    
+    def user(self, obj):
+        return obj.cart_set.first().user if obj.cart_set.exists() else 'No user'
+    
+    def total_price(self, obj):
+        return f"₹{obj.total_price()}"
+    total_price.short_description = 'Total Price'

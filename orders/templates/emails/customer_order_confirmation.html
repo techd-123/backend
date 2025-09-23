@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #f8f9fa; padding: 20px; text-align: center; }
+        .order-details { background: #fff; padding: 20px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Order Confirmed!</h1>
+            <p>Thank you for your order, {{ customer.first_name }}!</p>
+        </div>
+        
+        <div class="order-details">
+            <h2>Order #{{ order.order_number }}</h2>
+            <p><strong>Order Date:</strong> {{ order.created_at|date:"F j, Y" }}</p>
+            <p><strong>Total Amount:</strong> ₹{{ order.total_amount }}</p>
+            <p><strong>Status:</strong> {{ order.get_order_status_display }}</p>
+            
+            <p>Your vendors have been notified and will contact you shortly.</p>
+        </div>
+        
+        <p>You can view your order details in your account dashboard.</p>
+        <p><a href="planithere.in/orders">View Your Orders</a></p>
+    </div>
+</body>
+</html>
