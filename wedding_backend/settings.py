@@ -174,10 +174,17 @@ TWO_FACTOR_API_KEY = config('TWO_FACTOR_API_KEY')
 
 
 CORS_ALLOWED_ORIGINS = [
- "http://localhost:5173",
- ]
-CORS_ALLOW_ALL_ORIGINS = True
+    "https://planithere.in",
+    "https://www.planithere.in",
+]
+
+CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_CREDENTIALS = True
 
-ALLOWED_HOSTS = ['backend-ita7.onrender.com', 'planithere.in', 'api.planithere.in']
+ALLOWED_HOSTS = [
+    "backend-ita7.onrender.com",  # Render internal
+    "planithere.in",              # root domain
+    "www.planithere.in",          # optional www
+    "api.planithere.in",          # API subdomain
+]
