@@ -159,7 +159,10 @@ REST_KNOX = {
 OTP_EXPIRY_MINUTES = 5
 OTP_RESEND_COOLDOWN = 60
 
-# Email settings
+# Frontend URL for email templates
+FRONTEND_URL = 'http://localhost:5173'
+
+# Email settings (verify these exist)
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
