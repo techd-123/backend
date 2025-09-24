@@ -25,9 +25,6 @@ SECRET_KEY = 'django-insecure-)se@6jr@ataef$akqjf&)&iq8i-y^in=w6z4zc$$)45+(u)n9p
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -177,8 +174,17 @@ TWO_FACTOR_API_KEY = config('TWO_FACTOR_API_KEY')
 
 
 CORS_ALLOWED_ORIGINS = [
- "http://localhost:5173",
- ]
-CORS_ALLOW_ALL_ORIGINS = True
+    "https://planithere.in",
+    "https://www.planithere.in",
+]
+
+CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_CREDENTIALS = True
+
+ALLOWED_HOSTS = [
+    "backend-ita7.onrender.com",  # Render internal
+    "planithere.in",              # root domain
+    "www.planithere.in",          # optional www
+    "api.planithere.in",          # API subdomain
+]
