@@ -4,13 +4,10 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
-from django.db import transaction  # Add this import
-from django.utils import timezone  # Add this import
-from django.core.mail import send_mail  # Add this import
-from django.template.loader import render_to_string  # Add this import
-from django.utils.html import strip_tags  # Add this import
-from django.conf import settings  # Add this import
-
+from django.db import transaction
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
 from .models import *
 from .serializers import *
 from .permissions import IsStaffOrCreatorOrReadOnly
@@ -19,7 +16,7 @@ User = get_user_model()
 
 class ServiceListView(APIView):
     """Base list view for all services with filtering capabilities"""
-    permission_classes = [AllowAny]  # Anyone can view
+    permission_classes = [AllowAny]
     model = None
     serializer_class = None
     
@@ -71,6 +68,23 @@ class ServiceListView(APIView):
         serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data)
 
+class ServiceCreateView(APIView):
+    """Base create view for all services"""
+    permission_classes = [IsStaffOrCreatorOrReadOnly]
+    model = None
+    serializer_class = None
+    
+    def post(self, request):
+        # Set the creator in the request data
+        data = request.data.copy()
+        data['creator'] = request.user.id
+        
+        serializer = self.serializer_class(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class ServiceDetailView(APIView):
     """Base detail view for all services with CRUD operations"""
     permission_classes = [IsStaffOrCreatorOrReadOnly]
@@ -84,16 +98,6 @@ class ServiceDetailView(APIView):
         obj = self.get_object(pk)
         serializer = self.serializer_class(obj)
         return Response(serializer.data)
-    
-    def post(self, request):
-        # Store user in model state to be set as creator during save
-        self.model._state.user = request.user
-        
-        serializer = self.serializer_class(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, pk):
         obj = self.get_object(pk)
@@ -116,12 +120,8 @@ class ServiceDetailView(APIView):
         obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-# Concrete service views (keep your existing views)
+# Concrete service list views
 class VenueListView(ServiceListView):
-    model = Venue
-    serializer_class = VenueSerializer
-
-class VenueDetailView(ServiceDetailView):
     model = Venue
     serializer_class = VenueSerializer
 
@@ -129,15 +129,7 @@ class PlanningAndDecorListView(ServiceListView):
     model = PlanningAndDecor
     serializer_class = PlanningAndDecorSerializer
 
-class PlanningAndDecorDetailView(ServiceDetailView):
-    model = PlanningAndDecor
-    serializer_class = PlanningAndDecorSerializer
-
 class PhotographyListView(ServiceListView):
-    model = Photography
-    serializer_class = PhotographySerializer
-
-class PhotographyDetailView(ServiceDetailView):
     model = Photography
     serializer_class = PhotographySerializer
 
@@ -145,15 +137,7 @@ class MakeupListView(ServiceListView):
     model = Makeup
     serializer_class = MakeupSerializer
 
-class MakeupDetailView(ServiceDetailView):
-    model = Makeup
-    serializer_class = MakeupSerializer
-
 class BridalWearListView(ServiceListView):
-    model = BridalWear
-    serializer_class = BridalWearSerializer
-
-class BridalWearDetailView(ServiceDetailView):
     model = BridalWear
     serializer_class = BridalWearSerializer
 
@@ -161,15 +145,7 @@ class GroomWearListView(ServiceListView):
     model = GroomWear
     serializer_class = GroomWearSerializer
 
-class GroomWearDetailView(ServiceDetailView):
-    model = GroomWear
-    serializer_class = GroomWearSerializer
-
 class MehandiListView(ServiceListView):
-    model = Mehandi
-    serializer_class = MehandiSerializer
-
-class MehandiDetailView(ServiceDetailView):
     model = Mehandi
     serializer_class = MehandiSerializer
 
@@ -177,15 +153,7 @@ class WeddingCakeListView(ServiceListView):
     model = WeddingCake
     serializer_class = WeddingCakeSerializer
 
-class WeddingCakeDetailView(ServiceDetailView):
-    model = WeddingCake
-    serializer_class = WeddingCakeSerializer
-
 class CarRentalListView(ServiceListView):
-    model = CarRental
-    serializer_class = CarRentalSerializer
-
-class CarRentalDetailView(ServiceDetailView):
     model = CarRental
     serializer_class = CarRentalSerializer
 
@@ -193,21 +161,107 @@ class DJListView(ServiceListView):
     model = DJ
     serializer_class = DJSerializer
 
-class DJDetailView(ServiceDetailView):
-    model = DJ
-    serializer_class = DJSerializer
-
 class JewelryRentalListView(ServiceListView):
-    model = JewelryRental
-    serializer_class = JewelryRentalSerializer
-
-class JewelryRentalDetailView(ServiceDetailView):
     model = JewelryRental
     serializer_class = JewelryRentalSerializer
 
 class CateringListView(ServiceListView):
     model = Catering
     serializer_class = CateringSerializer
+
+# Concrete service create views
+class VenueCreateView(ServiceCreateView):
+    model = Venue
+    serializer_class = VenueSerializer
+
+class PlanningAndDecorCreateView(ServiceCreateView):
+    model = PlanningAndDecor
+    serializer_class = PlanningAndDecorSerializer
+
+class PhotographyCreateView(ServiceCreateView):
+    model = Photography
+    serializer_class = PhotographySerializer
+
+class MakeupCreateView(ServiceCreateView):
+    model = Makeup
+    serializer_class = MakeupSerializer
+
+class BridalWearCreateView(ServiceCreateView):
+    model = BridalWear
+    serializer_class = BridalWearSerializer
+
+class GroomWearCreateView(ServiceCreateView):
+    model = GroomWear
+    serializer_class = GroomWearSerializer
+
+class MehandiCreateView(ServiceCreateView):
+    model = Mehandi
+    serializer_class = MehandiSerializer
+
+class WeddingCakeCreateView(ServiceCreateView):
+    model = WeddingCake
+    serializer_class = WeddingCakeSerializer
+
+class CarRentalCreateView(ServiceCreateView):
+    model = CarRental
+    serializer_class = CarRentalSerializer
+
+class DJCreateView(ServiceCreateView):
+    model = DJ
+    serializer_class = DJSerializer
+
+class JewelryRentalCreateView(ServiceCreateView):
+    model = JewelryRental
+    serializer_class = JewelryRentalSerializer
+
+class CateringCreateView(ServiceCreateView):
+    model = Catering
+    serializer_class = CateringSerializer
+
+# Concrete service detail views
+class VenueDetailView(ServiceDetailView):
+    model = Venue
+    serializer_class = VenueSerializer
+
+class PlanningAndDecorDetailView(ServiceDetailView):
+    model = PlanningAndDecor
+    serializer_class = PlanningAndDecorSerializer
+
+class PhotographyDetailView(ServiceDetailView):
+    model = Photography
+    serializer_class = PhotographySerializer
+
+class MakeupDetailView(ServiceDetailView):
+    model = Makeup
+    serializer_class = MakeupSerializer
+
+class BridalWearDetailView(ServiceDetailView):
+    model = BridalWear
+    serializer_class = BridalWearSerializer
+
+class GroomWearDetailView(ServiceDetailView):
+    model = GroomWear
+    serializer_class = GroomWearSerializer
+
+class MehandiDetailView(ServiceDetailView):
+    model = Mehandi
+    serializer_class = MehandiSerializer
+
+class WeddingCakeDetailView(ServiceDetailView):
+    model = WeddingCake
+    serializer_class = WeddingCakeSerializer
+
+class CarRentalDetailView(ServiceDetailView):
+    model = CarRental
+    serializer_class = CarRentalSerializer
+
+class DJDetailView(ServiceDetailView):
+    model = DJ
+    serializer_class = DJSerializer
+
+class JewelryRentalDetailView(ServiceDetailView):
+    model = JewelryRental
+    serializer_class = JewelryRentalSerializer
 
 class CateringDetailView(ServiceDetailView):
     model = Catering
@@ -387,7 +441,7 @@ class CartCheckoutView(APIView):
     
     @transaction.atomic
     def post(self, request):
-        from orders.models import Order, OrderItem, VendorOrderNotification  # Import here to avoid circular imports
+        from orders.models import Order, OrderItem, VendorOrderNotification
         
         cart = get_object_or_404(Cart, user=request.user)
         
@@ -458,7 +512,7 @@ class CartCheckoutView(APIView):
         # Clear the cart after successful order
         cart.items.all().delete()
         
-        from orders.serializers import OrderSerializer  # Import here
+        from orders.serializers import OrderSerializer
         response_serializer = OrderSerializer(order)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
     
@@ -467,7 +521,7 @@ class CartCheckoutView(APIView):
         vendors = order.get_vendors()
         
         for vendor in vendors:
-            from orders.models import VendorOrderNotification  # Import here
+            from orders.models import VendorOrderNotification
             
             notification, created = VendorOrderNotification.objects.get_or_create(
                 order=order,
@@ -478,7 +532,7 @@ class CartCheckoutView(APIView):
             
             subject = f'New Order Received - #{order.order_number}'
             
-            # Simple email content (you can create templates later)
+            # Simple email content
             message = f"""
             New Order Received!
             
@@ -541,7 +595,6 @@ class CartCheckoutView(APIView):
         except Exception as e:
             print(f"Failed to send confirmation email to customer: {str(e)}")
 
-# Keep your existing WishlistView and GlobalSearchView
 class WishlistView(APIView):
     """View for managing user's wishlist"""
     permission_classes = [IsAuthenticated]
@@ -561,23 +614,34 @@ class WishlistView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        valid_fields = [
-            'venues', 'planning_decor', 'photography', 'makeup',
-            'bridal_wear', 'groom_wear', 'mehandi', 'wedding_cake',
-            'car_rentals', 'djs', 'jewelry_rentals', 'catering'
-        ]
+        # Map content_type to actual model field names
+        content_type_map = {
+            'venue': 'venues',
+            'planning_decor': 'planning_decor',
+            'photography': 'photography',
+            'makeup': 'makeup',
+            'bridal_wear': 'bridal_wear',
+            'groom_wear': 'groom_wear',
+            'mehandi': 'mehandi',
+            'wedding_cake': 'wedding_cake',
+            'car_rental': 'car_rentals',
+            'dj': 'djs',
+            'jewelry_rental': 'jewelry_rentals',
+            'catering': 'catering'
+        }
         
-        if content_type not in valid_fields:
+        field_name = content_type_map.get(content_type)
+        if not field_name:
             return Response(
-                {'error': 'Invalid content_type'},
+                {'error': f'Invalid content_type. Valid types: {list(content_type_map.keys())}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         wishlist, created = Wishlist.objects.get_or_create(user=request.user)
-        manager = getattr(wishlist, content_type)
         
+        # Model mapping for validation
         model_map = {
-            'venues': Venue,
+            'venue': Venue,
             'planning_decor': PlanningAndDecor,
             'photography': Photography,
             'makeup': Makeup,
@@ -585,22 +649,42 @@ class WishlistView(APIView):
             'groom_wear': GroomWear,
             'mehandi': Mehandi,
             'wedding_cake': WeddingCake,
-            'car_rentals': CarRental,
-            'djs': DJ,
-            'jewelry_rentals': JewelryRental,
+            'car_rental': CarRental,
+            'dj': DJ,
+            'jewelry_rental': JewelryRental,
             'catering': Catering,
         }
         
         model_class = model_map.get(content_type)
         try:
             obj = model_class.objects.get(pk=object_id)
-            if not manager.filter(pk=object_id).exists():
-                manager.add(obj)
-            return Response(WishlistSerializer(wishlist).data, status=status.HTTP_201_CREATED)
+            manager = getattr(wishlist, field_name)
+            
+            # Check if already in wishlist
+            if manager.filter(pk=object_id).exists():
+                return Response(
+                    {'message': 'Item already in wishlist'},
+                    status=status.HTTP_200_OK
+                )
+            
+            # Add to wishlist
+            manager.add(obj)
+            wishlist.save()
+            
+            return Response({
+                'message': 'Item added to wishlist successfully',
+                'wishlist': WishlistSerializer(wishlist).data
+            }, status=status.HTTP_201_CREATED)
+            
         except model_class.DoesNotExist:
             return Response(
-                {'error': 'Object not found'},
+                {'error': 'Service not found'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to add to wishlist: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
             )
     
     def delete(self, request):
@@ -613,31 +697,58 @@ class WishlistView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        valid_fields = [
-            'venues', 'planning_decor', 'photography', 'makeup',
-            'bridal_wear', 'groom_wear', 'mehandi', 'wedding_cake',
-            'car_rentals', 'djs', 'jewelry_rentals', 'catering'
-        ]
+        # Map content_type to actual model field names
+        content_type_map = {
+            'venue': 'venues',
+            'planning_decor': 'planning_decor',
+            'photography': 'photography',
+            'makeup': 'makeup',
+            'bridal_wear': 'bridal_wear',
+            'groom_wear': 'groom_wear',
+            'mehandi': 'mehandi',
+            'wedding_cake': 'wedding_cake',
+            'car_rental': 'car_rentals',
+            'dj': 'djs',
+            'jewelry_rental': 'jewelry_rentals',
+            'catering': 'catering'
+        }
         
-        if content_type not in valid_fields:
+        field_name = content_type_map.get(content_type)
+        if not field_name:
             return Response(
-                {'error': 'Invalid content_type'},
+                {'error': f'Invalid content_type. Valid types: {list(content_type_map.keys())}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        wishlist = get_object_or_404(Wishlist, user=request.user)
-        manager = getattr(wishlist, content_type)
-        
         try:
-            obj = manager.get(pk=object_id)
-            manager.remove(obj)
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except:
+            wishlist = Wishlist.objects.get(user=request.user)
+            manager = getattr(wishlist, field_name)
+            
+            # Remove from wishlist
+            removed_count = manager.filter(pk=object_id).count()
+            manager.remove(object_id)
+            wishlist.save()
+            
+            if removed_count > 0:
+                return Response({
+                    'message': 'Item removed from wishlist successfully'
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Item not found in wishlist'
+                }, status=status.HTTP_404_NOT_FOUND)
+                
+        except Wishlist.DoesNotExist:
             return Response(
-                {'error': 'Item not found in wishlist'},
+                {'error': 'Wishlist not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to remove from wishlist: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
 class GlobalSearchView(APIView):
     """Search across all vendor types with minimal query requirements"""
     permission_classes = [AllowAny]

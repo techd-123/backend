@@ -61,7 +61,6 @@ class RegisterView(APIView):
                 'message': 'Registration successful. Please verify your account.',
                 'user_id': user.id,
                 'verification_methods': verification_methods,
-                'token': serializer.data.get('token')
             }
             
             if user.email:
@@ -124,12 +123,9 @@ class VerifyOTPView(APIView):
                 user.is_active = True
                 user.save()
                 
-                # Create Knox token
-                _, token = AuthToken.objects.create(user)
                 
                 return Response({
-                    'message': 'Account verification complete!',
-                    'token': token,
+                    'message': 'Account verification complete! Please login to continue.',
                     'user_id': user.id,
                     'is_active': True
                 }, status=status.HTTP_200_OK)
@@ -218,19 +214,29 @@ class LoginView(KnoxLoginView):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']
+            
+            # Check if user is active (all verifications completed)
+            if not user.is_active:
+                return Response({
+                    'error': 'Account not verified. Please complete verification process.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             login(request, user)
             
-            # Get the token from the serializer
-            token = serializer.get_token(user)
+            # Get the token from Knox (this is where token gets created)
+            response = super().post(request, format=None)
             
-            return Response({
-                'token': token,
-                'user_id': user.id,
-                'email': user.email,
-                'phone_number': user.phone_number,
-                'is_email_verified': user.is_email_verified,
-                'is_phone_verified': user.is_phone_verified
-            })
+            # Add user info to response
+            if response.status_code == status.HTTP_200_OK:
+                response.data.update({
+                    'user_id': user.id,
+                    'email': user.email,
+                    'phone_number': user.phone_number,
+                    'is_email_verified': user.is_email_verified,
+                    'is_phone_verified': user.is_phone_verified
+                })
+            
+            return response
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LogoutView(KnoxLogoutView):
