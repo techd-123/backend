@@ -29,8 +29,6 @@ class BaseServiceModel(models.Model):
         abstract = True
 
     def save(self, *args, **kwargs):
-        if not self.pk and hasattr(self, '_state') and hasattr(self._state, 'user'):
-            self.creator = self._state.user
         super().save(*args, **kwargs)
 
     def __str__(self):

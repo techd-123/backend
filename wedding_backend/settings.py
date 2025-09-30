@@ -165,7 +165,7 @@ EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "techdproject@gmail.com"
-EMAIL_HOST_PASSWORD = "manv rzsq vcup wepw"
+EMAIL_HOST_PASSWORD = "benr mvwb opru dctj"
 DEFAULT_FROM_EMAIL = 'noreply@yourapp.com'
 
 # 2Factor.in SMS Gateway
@@ -186,5 +186,5 @@ ALLOWED_HOSTS = [
     "backend-ita7.onrender.com",  # Render internal
     "planithere.in",              # root domain
     "www.planithere.in",          # optional www
-    "api.planithere.in",          # API subdomain
+    # 'localhost', '127.0.0.1'
 ]
