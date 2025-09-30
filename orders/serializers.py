@@ -88,3 +88,18 @@ class VendorOrderNotificationSerializer(serializers.ModelSerializer):
             'viewed', 'viewed_at', 'created_at'
         ]
         read_only_fields = fields
+
+class UpdateOrderStatusSerializer(serializers.Serializer):
+    order_status = serializers.ChoiceField(
+        choices=Order.ORDER_STATUS_CHOICES, 
+        required=False
+    )
+    payment_status = serializers.ChoiceField(
+        choices=Order.PAYMENT_STATUS_CHOICES, 
+        required=False
+    )
+    
+    def validate(self, data):
+        if not data:
+            raise serializers.ValidationError("At least one status must be provided")
+        return data

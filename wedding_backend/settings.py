@@ -186,5 +186,5 @@ ALLOWED_HOSTS = [
     "backend-ita7.onrender.com",  # Render internal
     "planithere.in",              # root domain
     "www.planithere.in",          # optional www
-    # 'localhost', '127.0.0.1'
+    'localhost', '127.0.0.1'
 ]
