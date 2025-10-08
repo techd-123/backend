@@ -57,10 +57,12 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'wedding_backend.urls'
 
+import os
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],  # Add this line
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -186,5 +188,5 @@ ALLOWED_HOSTS = [
     "backend-ita7.onrender.com",  # Render internal
     "planithere.in",              # root domain
     "www.planithere.in",          # optional www
-    'localhost', '127.0.0.1'
+    # 'localhost', '127.0.0.1'
 ]

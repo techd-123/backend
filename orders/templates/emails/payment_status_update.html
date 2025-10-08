@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #f8f9fa; padding: 20px; text-align: center; }
+        .content { padding: 20px; background: white; }
+        .status-badge { 
+            display: inline-block; 
+            padding: 5px 15px; 
+            border-radius: 20px; 
+            font-weight: bold; 
+            margin: 0 10px;
+        }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-paid { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .status-refunded { background: #e2e3e5; color: #383d41; }
+        .order-details { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Payment Status Updated</h1>
+        </div>
+        
+        <div class="content">
+            <p>Dear {{ customer_name }},</p>
+            
+            <p>Your payment status has been updated:</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <span class="status-badge status-{{ old_status }}">{{ old_status|title }}</span>
+                <span style="font-size: 20px;">→</span>
+                <span class="status-badge status-{{ new_status }}">{{ new_status|title }}</span>
+            </div>
+            
+            <div class="order-details">
+                <h3>Order Details:</h3>
+                <p><strong>Order Number:</strong> #{{ order.order_number }}</p>
+                <p><strong>Order Date:</strong> {{ order.created_at|date:"F d, Y" }}</p>
+                <p><strong>Total Amount:</strong> ₹{{ order.total_amount }}</p>
+            </div>
+            
+            <p><strong>What this means:</strong></p>
+            <ul>
+                {% if new_status == 'paid' %}
+                <li>Your payment has been successfully processed</li>
+                <li>Your order is now confirmed and active</li>
+                <li>Vendors have been notified to proceed with services</li>
+                {% elif new_status == 'failed' %}
+                <li>There was an issue processing your payment</li>
+                <li>Please check your payment method and try again</li>
+                <li>Contact support if you need assistance</li>
+                {% elif new_status == 'refunded' %}
+                <li>Your payment has been refunded</li>
+                <li>The refund amount will reflect in your account within 5-7 business days</li>
+                <li>Contact support if you have any questions</li>
+                {% endif %}
+            </ul>
+            
+            <p>If you have any questions about your payment, please contact our support team.</p>
+            
+            <p>Best regards,<br>
+            The Wedding Planning Team</p>
+        </div>
+    </div>
+</body>
+</html>
