@@ -8,8 +8,8 @@ class BaseServiceModel(models.Model):
     creator = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        null=False,
+        blank=False,
         related_name='created_%(class)ss'
     )
     created_at = models.DateTimeField(auto_now_add=True)
