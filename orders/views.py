@@ -221,7 +221,7 @@ class OrderDetailView(APIView):
         return Response(serializer.data)
 
 class UpdateOrderStatusView(APIView):
-    """Update order status and payment status"""
+    """Update order status and payment status with email notifications"""
     permission_classes = [IsAuthenticated]
     
     def patch(self, request, pk):
@@ -239,6 +239,10 @@ class UpdateOrderStatusView(APIView):
         
         order_status = request.data.get('order_status')
         payment_status = request.data.get('payment_status')
+        
+        # Store old status for comparison
+        old_order_status = order.order_status
+        old_payment_status = order.payment_status
         
         updates = {}
         if order_status and order_status in dict(Order.ORDER_STATUS_CHOICES):
@@ -259,12 +263,83 @@ class UpdateOrderStatusView(APIView):
         
         order.save()
         
+        # Send email notifications if status changed
+        if order_status and order_status != old_order_status:
+            self.send_order_status_update_email(order, old_order_status, order_status)
+        
+        if payment_status and payment_status != old_payment_status:
+            self.send_payment_status_update_email(order, old_payment_status, payment_status)
+        
         serializer = OrderSerializer(order)
         return Response({
             'message': 'Order status updated successfully',
             'order': serializer.data
         })
-
+    
+    def send_order_status_update_email(self, order, old_status, new_status):
+        """Send email to customer when order status changes"""
+        from django.core.mail import send_mail
+        from django.conf import settings
+        from django.template.loader import render_to_string
+        from django.utils.html import strip_tags
+        
+        subject = f'Order Status Updated - #{order.order_number}'
+        
+        # HTML email template
+        html_message = render_to_string('emails/order_status_update.html', {
+            'order': order,
+            'old_status': old_status,
+            'new_status': new_status,
+            'customer_name': order.customer_name
+        })
+        
+        plain_message = strip_tags(html_message)
+        
+        try:
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                html_message=html_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[order.customer_email],
+                fail_silently=False,
+            )
+            print(f"Order status email sent to {order.customer_email}")
+        except Exception as e:
+            print(f"Failed to send order status email: {str(e)}")
+    
+    def send_payment_status_update_email(self, order, old_status, new_status):
+        """Send email to customer when payment status changes"""
+        from django.core.mail import send_mail
+        from django.conf import settings
+        from django.template.loader import render_to_string
+        from django.utils.html import strip_tags
+        
+        subject = f'Payment Status Updated - #{order.order_number}'
+        
+        # HTML email template
+        html_message = render_to_string('emails/payment_status_update.html', {
+            'order': order,
+            'old_status': old_status,
+            'new_status': new_status,
+            'customer_name': order.customer_name
+        })
+        
+        plain_message = strip_tags(html_message)
+        
+        try:
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                html_message=html_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[order.customer_email],
+                fail_silently=False,
+            )
+            print(f"Payment status email sent to {order.customer_email}")
+        except Exception as e:
+            print(f"Failed to send payment status email: {str(e)}")
+            
 class VendorOrdersView(APIView):
     """Get all orders for a vendor"""
     permission_classes = [IsAuthenticated]
